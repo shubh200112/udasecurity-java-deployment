@@ -1,5 +1,6 @@
 package com.udacity.catpoint.application;
 
+import com.udacity.catpoint.service.StatusListener;
 import com.udacity.catpoint.data.AlarmStatus;
 import com.udacity.catpoint.service.SecurityService;
 import com.udacity.catpoint.service.StyleService;

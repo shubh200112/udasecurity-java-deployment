@@ -1,12 +1,14 @@
 package com.udacity.catpoint.application;
 
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
 import com.udacity.catpoint.data.PretendDatabaseSecurityRepositoryImpl;
 import com.udacity.catpoint.data.SecurityRepository;
-import com.udacity.catpoint.service.FakeImageService;
 import com.udacity.catpoint.service.SecurityService;
-import net.miginfocom.swing.MigLayout;
+import com.udacity.imageservice.FakeImageService;
 
-import javax.swing.*;
+import net.miginfocom.swing.MigLayout;
 
 /**
  * This is the primary JFrame for the application that contains all the top-level JPanels.
