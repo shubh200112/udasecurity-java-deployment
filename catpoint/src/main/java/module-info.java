@@ -9,11 +9,7 @@ module catpoint {
 
     requires image.service;
 
-    exports com.udacity.catpoint.application;
-    exports com.udacity.catpoint.data;
-    exports com.udacity.catpoint.service;
-
-    opens com.udacity.catpoint.service;
     opens com.udacity.catpoint.data to com.google.gson;
+opens com.udacity.catpoint.service to org.mockito, org.junit.platform.commons;
 
 }

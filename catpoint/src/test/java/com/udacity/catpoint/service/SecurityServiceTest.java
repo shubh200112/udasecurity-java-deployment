@@ -1,7 +1,6 @@
 package com.udacity.catpoint.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,35 +15,27 @@ import com.udacity.imageservice.FakeImageService;
 public class SecurityServiceTest {
 
     private SecurityService securityService;
+    private SecurityRepository securityRepository;
+    private FakeImageService imageService;
 
     @BeforeEach
     void setUp() {
 
-        SecurityRepository repository =
+        securityRepository =
                 new PretendDatabaseSecurityRepositoryImpl();
 
-        FakeImageService fakeImageService =
+        imageService =
                 new FakeImageService();
 
-        securityService = new SecurityService(
-                repository,
-                fakeImageService
-        );
+        securityService =
+                new SecurityService(
+                        securityRepository,
+                        imageService
+                );
     }
 
     @Test
-    void alarmIsArmed() {
-
-        securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
-
-        assertEquals(
-                ArmingStatus.ARMED_HOME,
-                securityService.getArmingStatus()
-        );
-    }
-
-    @Test
-    void ifArmedAndSensorOpened_thenAlarmStateIsPendingAlarm() {
+    void ifAlarmIsArmedHomeAndSensorActivated_thenStateIsPendingAlarm() {
 
         securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
 
@@ -60,7 +51,23 @@ public class SecurityServiceTest {
     }
 
     @Test
-    void ifPendingAlarmAndSensorActivatedAgain_thenAlarmStateIsAlarm() {
+    void ifAlarmIsArmedAwayAndSensorActivated_thenStateIsPendingAlarm() {
+
+        securityService.setArmingStatus(ArmingStatus.ARMED_AWAY);
+
+        Sensor sensor =
+                new Sensor("Front Door", SensorType.DOOR);
+
+        securityService.changeSensorActivationStatus(sensor, true);
+
+        assertEquals(
+                AlarmStatus.PENDING_ALARM,
+                securityService.getAlarmStatus()
+        );
+    }
+
+    @Test
+    void ifAlarmIsPendingAndSensorActivatedAgain_thenStateIsAlarm() {
 
         securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
 
@@ -78,20 +85,7 @@ public class SecurityServiceTest {
     }
 
     @Test
-    void ifAlarmActiveAndSystemDisarmed_thenAlarmStateIsNoAlarm() {
-
-        securityService.setAlarmStatus(AlarmStatus.ALARM);
-
-        securityService.setArmingStatus(ArmingStatus.DISARMED);
-
-        assertEquals(
-                AlarmStatus.NO_ALARM,
-                securityService.getAlarmStatus()
-        );
-    }
-
-    @Test
-    void ifSensorDeactivatedWhilePendingAndNoOtherSensorsActive_thenNoAlarm() {
+    void ifPendingAlarmAndAllSensorsInactive_thenReturnToNoAlarmState() {
 
         securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
 
@@ -109,77 +103,118 @@ public class SecurityServiceTest {
     }
 
     @Test
-void ifAlarmIsPendingAndSensorDeactivated_thenAlarmStaysPending() {
+    void ifAlarmIsActive_thenChangingSensorStateDoesNotChangeAlarmState() {
 
-    securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
+        securityService.setAlarmStatus(AlarmStatus.ALARM);
 
-    Sensor sensor =
-            new Sensor("Front Door", SensorType.DOOR);
+        Sensor sensor =
+                new Sensor("Front Door", SensorType.DOOR);
 
-    securityService.changeSensorActivationStatus(sensor, true);
+        securityService.changeSensorActivationStatus(sensor, true);
 
-    securityService.changeSensorActivationStatus(sensor, false);
+        assertEquals(
+                AlarmStatus.ALARM,
+                securityService.getAlarmStatus()
+        );
+    }
 
-    assertEquals(
-            AlarmStatus.NO_ALARM,
-            securityService.getAlarmStatus()
-    );
-}
+    @Test
+    void ifCatDetectedWhileArmedHome_thenAlarmSetToAlarm() {
 
-@Test
-void ifAlarmIsActive_thenChangingSensorStateDoesNotChangeAlarmState() {
+        securityRepository.setCatDetected(true);
 
-    securityService.setAlarmStatus(AlarmStatus.ALARM);
+        securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
 
-    Sensor sensor =
-            new Sensor("Front Door", SensorType.DOOR);
+        securityService.processImage(null);
 
-    securityService.changeSensorActivationStatus(sensor, true);
+        assertEquals(
+                AlarmStatus.ALARM,
+                securityService.getAlarmStatus()
+        );
+    }
 
-    assertEquals(
-            AlarmStatus.ALARM,
-            securityService.getAlarmStatus()
-    );
-}
+    @Test
+    void ifCatNotDetectedAndSensorsInactive_thenAlarmSetToNoAlarm() {
 
-@Test
-void ifCatDetectedWhileArmedHome_thenAlarmTriggered() {
+        securityRepository.setCatDetected(false);
 
-    securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
+        securityService.processImage(null);
 
-    securityService.setAlarmStatus(AlarmStatus.NO_ALARM);
+        assertEquals(
+                AlarmStatus.NO_ALARM,
+                securityService.getAlarmStatus()
+        );
+    }
 
-    securityService.processImage(null);
+    @Test
+    void ifSystemIsDisarmed_thenAlarmStateIsNoAlarm() {
 
-    assertNotNull(
-            securityService.getAlarmStatus()
-    );
-}
+        securityService.setAlarmStatus(AlarmStatus.ALARM);
 
-@Test
-void ifSystemDisarmed_thenAlarmIsNoAlarm() {
+        securityService.setArmingStatus(ArmingStatus.DISARMED);
 
-    securityService.setAlarmStatus(AlarmStatus.ALARM);
+        assertEquals(
+                AlarmStatus.NO_ALARM,
+                securityService.getAlarmStatus()
+        );
+    }
 
-    securityService.setArmingStatus(ArmingStatus.DISARMED);
+    @Test
+    void ifSystemIsArmed_thenSensorsBecomeInactive() {
 
-    assertEquals(
-            AlarmStatus.NO_ALARM,
-            securityService.getAlarmStatus()
-    );
-}
+        Sensor sensor =
+                new Sensor("Front Door", SensorType.DOOR);
 
-@Test
-void ifSensorActivatedWhileDisarmed_thenAlarmRemainsNoAlarm() {
+        sensor.setActive(true);
 
-    Sensor sensor =
-            new Sensor("Front Door", SensorType.DOOR);
+        securityRepository.addSensor(sensor);
 
-    securityService.changeSensorActivationStatus(sensor, true);
+        securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
 
-    assertEquals(
-            AlarmStatus.NO_ALARM,
-            securityService.getAlarmStatus()
-    );
-}
+        assertEquals(false, sensor.getActive());
+    }
+
+    @Test
+    void ifSensorActivatedWhileDisarmed_thenAlarmRemainsNoAlarm() {
+
+        Sensor sensor =
+                new Sensor("Front Door", SensorType.DOOR);
+
+        securityService.changeSensorActivationStatus(sensor, true);
+
+        assertEquals(
+                AlarmStatus.NO_ALARM,
+                securityService.getAlarmStatus()
+        );
+    }
+
+    @Test
+    void addSensor_addsSensorToRepository() {
+
+        Sensor sensor =
+                new Sensor("Door", SensorType.DOOR);
+
+        securityService.addSensor(sensor);
+
+        assertEquals(
+                1,
+                securityRepository.getSensors().size()
+        );
+    }
+
+    @Test
+    void removeSensor_removesSensorFromRepository() {
+
+        Sensor sensor =
+                new Sensor("Door", SensorType.DOOR);
+
+        securityRepository.addSensor(sensor);
+
+        securityService.removeSensor(sensor);
+
+        assertEquals(
+                0,
+                securityRepository.getSensors().size()
+        );
+    }
 }

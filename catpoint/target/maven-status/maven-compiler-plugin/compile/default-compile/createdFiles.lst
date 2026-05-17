@@ -9,7 +9,6 @@ com\udacity\catpoint\application\CatpointGui.class
 com\udacity\catpoint\application\DisplayPanel.class
 com\udacity\catpoint\data\SecurityRepository.class
 module-info.class
-com\udacity\catpoint\data\PretendDatabaseSecurityRepositoryImpl$1.class
 com\udacity\catpoint\data\AlarmStatus.class
 com\udacity\catpoint\application\CatpointApp.class
 com\udacity\catpoint\service\SecurityService.class

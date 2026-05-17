@@ -27,23 +27,24 @@ public class SecurityService {
         this.imageService = imageService;
     }
 
-    public void setArmingStatus(ArmingStatus armingStatus) {
+  public void setArmingStatus(ArmingStatus armingStatus) {
+    this.armingStatus = armingStatus;
 
-        this.armingStatus = armingStatus;
-
-        if (armingStatus == ArmingStatus.DISARMED) {
-            setAlarmStatus(AlarmStatus.NO_ALARM);
-        }
-
-        if (armingStatus == ArmingStatus.ARMED_HOME ||
-                armingStatus == ArmingStatus.ARMED_AWAY) {
-
-            securityRepository.getSensors()
-                    .forEach(sensor -> sensor.setActive(false));
-        }
-
-        notifySensorStatusChanged();
+    if (armingStatus == ArmingStatus.DISARMED) {
+        setAlarmStatus(AlarmStatus.NO_ALARM);
     }
+
+    if (armingStatus == ArmingStatus.ARMED_HOME ||
+            armingStatus == ArmingStatus.ARMED_AWAY) {
+
+        securityRepository.getSensors().forEach(sensor ->
+                changeSensorActivationStatus(sensor, false));
+
+        if (securityRepository.getCatDetected()) {
+            setAlarmStatus(AlarmStatus.ALARM);
+        }
+    }
+}
 
     public void changeSensorActivationStatus(Sensor sensor, Boolean active) {
 
@@ -85,18 +86,24 @@ public class SecurityService {
 
     public void processImage(BufferedImage image) {
 
-        boolean catDetected =
-                imageService.imageContainsCat(image, 50.0f);
+    boolean catDetected = imageService.imageContainsCat(image, 50f);
 
-        if (catDetected &&
-                armingStatus == ArmingStatus.ARMED_HOME) {
+    if (catDetected &&
+            securityRepository.getArmingStatus() == ArmingStatus.ARMED_HOME) {
 
-            setAlarmStatus(AlarmStatus.ALARM);
+        securityRepository.setAlarmStatus(AlarmStatus.ALARM);
+
+    } else if (!catDetected) {
+
+        boolean anySensorActive = securityRepository.getSensors()
+                .stream()
+                .anyMatch(Sensor::getActive);
+
+        if (!anySensorActive) {
+            securityRepository.setAlarmStatus(AlarmStatus.NO_ALARM);
         }
-
-        notifyCatDetected(catDetected);
     }
-
+}
     public AlarmStatus getAlarmStatus() {
         return alarmStatus;
     }

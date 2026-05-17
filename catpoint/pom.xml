@@ -28,6 +28,7 @@
     <build>
         <plugins>
 
+            <!-- Assembly Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -59,7 +60,29 @@
                 </executions>
             </plugin>
 
+            <!-- Surefire Plugin -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.0.0-M5</version>
+
+                <configuration>
+                    <argLine>
+                        --add-opens catpoint/com.udacity.catpoint.service=ALL-UNNAMED
+                    </argLine>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.7.3.0</version>
+            </plugin>
+        </plugins>
+    </reporting>
 
 </project>
