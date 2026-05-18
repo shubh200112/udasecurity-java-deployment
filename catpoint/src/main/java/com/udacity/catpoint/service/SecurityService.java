@@ -40,8 +40,19 @@ public class SecurityService {
             new HashSet<>(securityRepository.getSensors())
                 .forEach(sensor -> changeSensorActivationStatus(sensor, false));
 
-            if (securityRepository.getCatDetected()) {
-                setAlarmStatus(AlarmStatus.ALARM);
+
+            if (armingStatus == ArmingStatus.ARMED_HOME ||
+        armingStatus == ArmingStatus.ARMED_AWAY) {
+
+                new HashSet<>(securityRepository.getSensors())
+                    .forEach(sensor -> changeSensorActivationStatus(sensor, false));
+
+                // Notify listeners to refresh sensor display
+                statusListeners.forEach(StatusListener::sensorStatusChanged);
+
+                if (securityRepository.getCatDetected()) {
+                    setAlarmStatus(AlarmStatus.ALARM);
+                }
             }
         }
     }
