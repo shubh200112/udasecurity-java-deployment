@@ -37,8 +37,8 @@ public class SecurityService {
         if (armingStatus == ArmingStatus.ARMED_HOME ||
                 armingStatus == ArmingStatus.ARMED_AWAY) {
 
-            securityRepository.getSensors()
-                    .forEach(sensor -> changeSensorActivationStatus(sensor, false));
+            new HashSet<>(securityRepository.getSensors())
+                .forEach(sensor -> changeSensorActivationStatus(sensor, false));
 
             if (securityRepository.getCatDetected()) {
                 setAlarmStatus(AlarmStatus.ALARM);

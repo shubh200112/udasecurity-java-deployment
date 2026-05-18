@@ -164,6 +164,16 @@ public class SecurityServiceTest {
         assertEquals(AlarmStatus.ALARM, securityService.getAlarmStatus());
     }
 
+    @Test
+        void ifCatDetectedAndSystemArmed_thenAlarmSetToAlarm() {
+        when(securityRepository.getSensors()).thenReturn(sensors);
+        when(securityRepository.getCatDetected()).thenReturn(true);
+
+        securityService.setArmingStatus(ArmingStatus.ARMED_HOME);
+
+        verify(securityRepository).setAlarmStatus(AlarmStatus.ALARM);
+        }
+
     // Requirement 10 — no cat detected + sensors inactive → NO_ALARM
     @Test
     void ifCatNotDetectedAndSensorsInactive_thenAlarmSetToNoAlarm() {
