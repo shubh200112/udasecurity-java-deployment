@@ -26,36 +26,28 @@ public class SecurityService {
         this.securityRepository = securityRepository;
     }
 
-    public void setArmingStatus(ArmingStatus armingStatus) {
-        this.armingStatus = armingStatus;
-        securityRepository.setArmingStatus(armingStatus); // FIX 1: sync to repository
+public void setArmingStatus(ArmingStatus armingStatus) {
+    this.armingStatus = armingStatus;
+    securityRepository.setArmingStatus(armingStatus);
 
-        if (armingStatus == ArmingStatus.DISARMED) {
-            setAlarmStatus(AlarmStatus.NO_ALARM);
-        }
+    if (armingStatus == ArmingStatus.DISARMED) {
+        setAlarmStatus(AlarmStatus.NO_ALARM);
+    }
 
-        if (armingStatus == ArmingStatus.ARMED_HOME ||
-                armingStatus == ArmingStatus.ARMED_AWAY) {
+    if (armingStatus == ArmingStatus.ARMED_HOME ||
+            armingStatus == ArmingStatus.ARMED_AWAY) {
 
-            new HashSet<>(securityRepository.getSensors())
-                .forEach(sensor -> changeSensorActivationStatus(sensor, false));
+        new HashSet<>(securityRepository.getSensors())
+            .forEach(sensor -> changeSensorActivationStatus(sensor, false));
 
+        // Notify listeners to refresh sensor display
+        statusListeners.forEach(StatusListener::sensorStatusChanged);
 
-            if (armingStatus == ArmingStatus.ARMED_HOME ||
-        armingStatus == ArmingStatus.ARMED_AWAY) {
-
-                new HashSet<>(securityRepository.getSensors())
-                    .forEach(sensor -> changeSensorActivationStatus(sensor, false));
-
-                // Notify listeners to refresh sensor display
-                statusListeners.forEach(StatusListener::sensorStatusChanged);
-
-                if (securityRepository.getCatDetected()) {
-                    setAlarmStatus(AlarmStatus.ALARM);
-                }
-            }
+        if (securityRepository.getCatDetected()) {
+            setAlarmStatus(AlarmStatus.ALARM);
         }
     }
+}
 
     public void changeSensorActivationStatus(Sensor sensor, Boolean active) {
 
