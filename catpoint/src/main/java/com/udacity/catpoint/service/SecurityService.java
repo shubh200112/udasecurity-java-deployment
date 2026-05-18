@@ -12,147 +12,126 @@ import com.udacity.imageservice.FakeImageService;
 
 public class SecurityService {
 
-    private final SecurityRepository securityRepository;
     private final FakeImageService imageService;
+    private final SecurityRepository securityRepository;
 
     private final Set<StatusListener> statusListeners = new HashSet<>();
 
-    private ArmingStatus armingStatus = ArmingStatus.DISARMED;
     private AlarmStatus alarmStatus = AlarmStatus.NO_ALARM;
+    private ArmingStatus armingStatus = ArmingStatus.DISARMED;
 
     public SecurityService(SecurityRepository securityRepository,
                            FakeImageService imageService) {
-
-        this.securityRepository = securityRepository;
         this.imageService = imageService;
+        this.securityRepository = securityRepository;
     }
 
-  public void setArmingStatus(ArmingStatus armingStatus) {
-    this.armingStatus = armingStatus;
+    public void setArmingStatus(ArmingStatus armingStatus) {
+        this.armingStatus = armingStatus;
+        securityRepository.setArmingStatus(armingStatus); // FIX 1: sync to repository
 
-    if (armingStatus == ArmingStatus.DISARMED) {
-        setAlarmStatus(AlarmStatus.NO_ALARM);
-    }
+        if (armingStatus == ArmingStatus.DISARMED) {
+            setAlarmStatus(AlarmStatus.NO_ALARM);
+        }
 
-    if (armingStatus == ArmingStatus.ARMED_HOME ||
-            armingStatus == ArmingStatus.ARMED_AWAY) {
+        if (armingStatus == ArmingStatus.ARMED_HOME ||
+                armingStatus == ArmingStatus.ARMED_AWAY) {
 
-        securityRepository.getSensors().forEach(sensor ->
-                changeSensorActivationStatus(sensor, false));
+            securityRepository.getSensors()
+                    .forEach(sensor -> changeSensorActivationStatus(sensor, false));
 
-        if (securityRepository.getCatDetected()) {
-            setAlarmStatus(AlarmStatus.ALARM);
+            if (securityRepository.getCatDetected()) {
+                setAlarmStatus(AlarmStatus.ALARM);
+            }
         }
     }
-}
 
     public void changeSensorActivationStatus(Sensor sensor, Boolean active) {
 
-    if (active) {
-
-        if (alarmStatus == AlarmStatus.PENDING_ALARM) {
-
-            setAlarmStatus(AlarmStatus.ALARM);
-
-        } else if (!sensor.getActive()) {
-
-            sensor.setActive(true);
-
-            if (alarmStatus == AlarmStatus.NO_ALARM
-                    && armingStatus != ArmingStatus.DISARMED) {
-
-                setAlarmStatus(AlarmStatus.PENDING_ALARM);
-            }
+        if (sensor.getActive() == active) {
+            return;
         }
 
-    } else {
+        sensor.setActive(active);
+        securityRepository.updateSensor(sensor);
 
-        sensor.setActive(false);
+        if (active) {
+            if (armingStatus == ArmingStatus.DISARMED) {
+                return; // FIX: don't trigger alarm when disarmed
+            }
+            if (alarmStatus == AlarmStatus.NO_ALARM) {
+                setAlarmStatus(AlarmStatus.PENDING_ALARM);
+            } else if (alarmStatus == AlarmStatus.PENDING_ALARM) {
+                setAlarmStatus(AlarmStatus.ALARM);
+            }
+            // if alarmStatus == ALARM, do nothing
 
-        if (allSensorsInactive()) {
-            setAlarmStatus(AlarmStatus.NO_ALARM);
+        } else {
+            // FIX 3: only reset to NO_ALARM if status is PENDING, not ALARM
+            if (allSensorsInactive() && alarmStatus == AlarmStatus.PENDING_ALARM) {
+                setAlarmStatus(AlarmStatus.NO_ALARM);
+            }
         }
     }
 
-    notifySensorStatusChanged();
-}
-
     private boolean allSensorsInactive() {
-
         return securityRepository.getSensors()
                 .stream()
                 .noneMatch(Sensor::getActive);
     }
 
     public void processImage(BufferedImage image) {
+        boolean catDetected = imageService.imageContainsCat(image, 50.0f);
 
-    boolean catDetected = imageService.imageContainsCat(image, 50f);
+        securityRepository.setCatDetected(catDetected);
+        notifyCatDetected(catDetected); // FIX 4: actually call notifyCatDetected
 
-    if (catDetected &&
-            securityRepository.getArmingStatus() == ArmingStatus.ARMED_HOME) {
+        // FIX 2: use this.armingStatus (local field), not securityRepository.getArmingStatus()
+        if (catDetected && armingStatus == ArmingStatus.ARMED_HOME) {
+            setAlarmStatus(AlarmStatus.ALARM); // FIX 2: use this.setAlarmStatus()
 
-        securityRepository.setAlarmStatus(AlarmStatus.ALARM);
-
-    } else if (!catDetected) {
-
-        boolean anySensorActive = securityRepository.getSensors()
-                .stream()
-                .anyMatch(Sensor::getActive);
-
-        if (!anySensorActive) {
-            securityRepository.setAlarmStatus(AlarmStatus.NO_ALARM);
+        } else if (!catDetected) {
+            if (allSensorsInactive()) {
+                setAlarmStatus(AlarmStatus.NO_ALARM); // FIX 2: use this.setAlarmStatus()
+            }
         }
     }
-}
-    public AlarmStatus getAlarmStatus() {
-        return alarmStatus;
+
+    public void setAlarmStatus(AlarmStatus status) {
+        this.alarmStatus = status; // keep local field in sync
+        securityRepository.setAlarmStatus(status);
+        notifyListeners(status);
     }
 
-    public void setAlarmStatus(AlarmStatus alarmStatus) {
-        this.alarmStatus = alarmStatus;
-        notifyAlarmStatus();
+    public AlarmStatus getAlarmStatus() {
+        return alarmStatus;
     }
 
     public ArmingStatus getArmingStatus() {
         return armingStatus;
     }
 
-    public Set<Sensor> getSensors() {
-        return securityRepository.getSensors();
-    }
-
     public void addSensor(Sensor sensor) {
         securityRepository.addSensor(sensor);
-        notifySensorStatusChanged();
     }
 
     public void removeSensor(Sensor sensor) {
         securityRepository.removeSensor(sensor);
-        notifySensorStatusChanged();
     }
 
     public void addStatusListener(StatusListener listener) {
         statusListeners.add(listener);
     }
 
-    private void notifyAlarmStatus() {
-
-        statusListeners.forEach(
-                listener -> listener.notify(alarmStatus)
-        );
+    private void notifyListeners(AlarmStatus status) {
+        statusListeners.forEach(listener -> listener.notify(status));
     }
 
     private void notifyCatDetected(boolean catDetected) {
-
-        statusListeners.forEach(
-                listener -> listener.catDetected(catDetected)
-        );
+        statusListeners.forEach(listener -> listener.catDetected(catDetected));
     }
 
-    private void notifySensorStatusChanged() {
-
-        statusListeners.forEach(
-                StatusListener::sensorStatusChanged
-        );
+    public Set<Sensor> getSensors() {
+        return securityRepository.getSensors();
     }
 }
