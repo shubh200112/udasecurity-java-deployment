@@ -56,7 +56,6 @@ public class SecurityServiceTest {
         Sensor sensor = new Sensor("Front Door", SensorType.DOOR);
         sensors.add(sensor);
         when(securityRepository.getSensors()).thenReturn(sensors);
-        when(securityRepository.getArmingStatus()).thenReturn(armingStatus);
 
         securityService.setArmingStatus(armingStatus);
         securityService.changeSensorActivationStatus(sensor, true);
